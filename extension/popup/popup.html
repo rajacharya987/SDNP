@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SafeLink AI Shield</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="shield-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L3 7V12C3 17.523 6.944 21.737 12 22C17.056 21.737 21 17.523 21 12V7L12 2Z" fill="url(#shield-grad)" stroke="#38BDF8" stroke-width="1.5"/>
+            <path d="M9 12L11 14L15 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="shield-grad" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#2563EB"/>
+                <stop offset="1" stop-color="#0EA5E9"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="brand-title">SafeLink AI</span>
+      </div>
+      <div class="status-indicator" id="networkStatus">
+        <span class="dot"></span>
+        <span class="status-text">Backend Active</span>
+      </div>
+    </header>
+
+    <!-- Active Tab Shield Banner -->
+    <div class="active-tab-banner" id="activeTabBanner">
+      <div class="banner-icon" id="bannerIcon">🛡️</div>
+      <div class="banner-info">
+        <div class="banner-title" id="bannerTitle">Analyzing Active Tab...</div>
+        <div class="banner-domain" id="bannerDomain">checking...</div>
+      </div>
+      <div class="banner-badge" id="bannerBadge">Checking</div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="url-tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        URL Scan
+      </button>
+      <button class="tab-btn" data-tab="sms-tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        SMS Check
+      </button>
+      <button class="tab-btn" data-tab="breach-tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Breaches
+      </button>
+      <button class="tab-btn" data-tab="mail-tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Temp Mail
+      </button>
+    </nav>
+
+    <!-- Tab Contents -->
+    <main class="tab-content-container">
+      
+      <!-- 1. URL Scanner Tab -->
+      <div class="tab-panel active" id="url-tab">
+        <div class="input-group">
+          <label class="input-label">Target URL or Subscription Link</label>
+          <div class="input-wrapper">
+            <input type="text" id="urlInput" placeholder="Paste link (e.g. https://bit.ly/xyz)" />
+            <button class="btn-paste" id="pasteUrlBtn" title="Paste from clipboard">Paste</button>
+          </div>
+        </div>
+        <button class="btn-primary" id="scanUrlBtn">
+          <span>Scan Link Threat</span>
+        </button>
+
+        <div class="result-card hidden" id="urlResultCard">
+          <div class="result-header">
+            <span class="result-verdict" id="urlVerdictTitle">Safe Domain</span>
+            <span class="risk-score-badge" id="urlScoreBadge">Score: 0/100</span>
+          </div>
+          <p class="result-message" id="urlVerdictMsg">No threat detected.</p>
+          <ul class="threat-list hidden" id="urlThreatList"></ul>
+        </div>
+      </div>
+
+      <!-- 2. SMS / Message Analyzer Tab -->
+      <div class="tab-panel" id="sms-tab">
+        <div class="input-group">
+          <label class="input-label">Paste Suspicious SMS or Email Text</label>
+          <textarea id="smsInput" rows="4" placeholder="e.g. URGENT: Your bank account is locked! Click link immediately to verify..."></textarea>
+        </div>
+        <button class="btn-primary" id="analyzeSmsBtn">
+          <span>Analyze Text Phishing Flags</span>
+        </button>
+
+        <div class="result-card hidden" id="smsResultCard">
+          <div class="result-header">
+            <span class="result-verdict" id="smsVerdictTitle">Safe</span>
+            <span class="risk-score-badge" id="smsScoreBadge">Score: 0/100</span>
+          </div>
+          <div class="flags-container" id="smsFlagsList"></div>
+          <p class="result-recommendation" id="smsRecommendation"></p>
+        </div>
+      </div>
+
+      <!-- 3. Breach Checker Tab -->
+      <div class="tab-panel" id="breach-tab">
+        <div class="input-group">
+          <label class="input-label">Check Email for Credential Leaks</label>
+          <input type="email" id="breachInput" placeholder="Enter email address (e.g. user@gmail.com)" />
+        </div>
+        <button class="btn-primary" id="checkBreachBtn">
+          <span>Check Leaked Breaches</span>
+        </button>
+
+        <div class="result-card hidden" id="breachResultCard">
+          <div class="result-header">
+            <span class="result-verdict" id="breachVerdictTitle">Clean</span>
+          </div>
+          <p class="result-message" id="breachMsg"></p>
+        </div>
+      </div>
+
+      <!-- 4. Disposable Temp Mail Tab -->
+      <div class="tab-panel" id="mail-tab">
+        <div class="temp-mail-box">
+          <label class="input-label">Your Disposable Burner Email</label>
+          <div class="email-display">
+            <span id="tempEmailText">Click Generate to Create Mail</span>
+            <button class="btn-icon" id="copyEmailBtn" title="Copy Address">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+          <button class="btn-primary" id="generateEmailBtn">
+            <span>Generate New Burner Email</span>
+          </button>
+        </div>
+
+        <div class="inbox-container">
+          <div class="inbox-header">
+            <span>Virtual Inbox</span>
+            <button class="btn-text" id="refreshInboxBtn">Refresh</button>
+          </div>
+          <div class="inbox-list" id="inboxList">
+            <div class="inbox-empty">No incoming messages yet.</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <span>SafeLink AI v1.0.0</span>
+      <a href="http://localhost:8080" target="_blank" class="footer-link">Backend Config</a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

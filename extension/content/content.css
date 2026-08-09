@@ -1,0 +1,13 @@
+/* SafeLink AI Content Overlay Styles */
+.safelink-warning-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: #EF4444;
+  color: #FFFFFF;
+  padding: 10px;
+  text-align: center;
+  font-weight: bold;
+  z-index: 999999;
+}
