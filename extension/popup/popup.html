@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SafeLink AI Shield</title>
+  <title>SentinelX Security Platform</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -23,7 +23,7 @@
             </defs>
           </svg>
         </div>
-        <span class="brand-title">SafeLink AI</span>
+        <span class="brand-title">SentinelX</span>
       </div>
       <div class="status-indicator" id="networkStatus">
         <span class="dot"></span>
@@ -31,122 +31,199 @@
       </div>
     </header>
 
-    <!-- Active Tab Shield Banner -->
-    <div class="active-tab-banner" id="activeTabBanner">
+    <!-- Active Site Auto Shield Banner -->
+    <div class="active-tab-banner safe" id="activeTabBanner">
       <div class="banner-icon" id="bannerIcon">🛡️</div>
       <div class="banner-info">
-        <div class="banner-title" id="bannerTitle">Analyzing Active Tab...</div>
-        <div class="banner-domain" id="bannerDomain">checking...</div>
+        <div class="banner-title" id="bannerTitle">Analyzing Active Site...</div>
+        <div class="banner-domain" id="bannerDomain">Detecting page URL...</div>
       </div>
-      <div class="banner-badge" id="bannerBadge">Checking</div>
+      <div class="banner-badge safe" id="bannerBadge">SAFE</div>
+    </div>
+
+    <!-- Active Site Threat Indicators (Shown when threat detected) -->
+    <div class="active-threat-card hidden" id="activeThreatCard">
+      <div class="threat-card-header">
+        <span class="threat-card-title">🚨 BLOCKED / THREAT INDICATORS</span>
+        <span class="threat-score-pill" id="activeScorePill">Score: 94/100</span>
+      </div>
+      <ul class="active-reasons-list" id="activeReasonsList"></ul>
     </div>
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <button class="tab-btn active" data-tab="url-tab">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-        URL Scan
+      <button class="tab-btn active" data-tab="dashboard-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Dashboard
       </button>
-      <button class="tab-btn" data-tab="sms-tab">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        SMS Check
+      <button class="tab-btn" data-tab="fingerprint-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M12 2v20"/><circle cx="12" cy="12" r="10"/></svg>
+        Fingerprint
       </button>
-      <button class="tab-btn" data-tab="breach-tab">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Breaches
+      <button class="tab-btn" data-tab="extension-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Auditor
       </button>
-      <button class="tab-btn" data-tab="mail-tab">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        Temp Mail
+      <button class="tab-btn" data-tab="tools-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Tools
       </button>
     </nav>
 
     <!-- Tab Contents -->
     <main class="tab-content-container">
-      
-      <!-- 1. URL Scanner Tab -->
-      <div class="tab-panel active" id="url-tab">
-        <div class="input-group">
-          <label class="input-label">Target URL or Subscription Link</label>
-          <div class="input-wrapper">
-            <input type="text" id="urlInput" placeholder="Paste link (e.g. https://bit.ly/xyz)" />
-            <button class="btn-paste" id="pasteUrlBtn" title="Paste from clipboard">Paste</button>
+
+      <!-- 1. Security Center Dashboard Panel -->
+      <div class="tab-panel active" id="dashboard-tab">
+        <div class="layer-list">
+          <div class="layer-item">
+            <div class="layer-info">
+              <span class="layer-icon">🌐</span>
+              <div>
+                <div class="layer-title">Web Protection</div>
+                <div class="layer-desc">Active URL & Phishing Inspector</div>
+              </div>
+            </div>
+            <span class="badge-active">ACTIVE</span>
+          </div>
+
+          <div class="layer-item">
+            <div class="layer-info">
+              <span class="layer-icon">🛡️</span>
+              <div>
+                <div class="layer-title">Local DNS Shield</div>
+                <div class="layer-desc">Domain Level Threat Resolver</div>
+              </div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="dnsToggle" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="layer-item">
+            <div class="layer-info">
+              <span class="layer-icon">🧩</span>
+              <div>
+                <div class="layer-title">Extension Inspector</div>
+                <div class="layer-desc">Browser Permission Audit</div>
+              </div>
+            </div>
+            <span class="badge-active">ACTIVE</span>
+          </div>
+
+          <div class="layer-item">
+            <div class="layer-info">
+              <span class="layer-icon">💻</span>
+              <div>
+                <div class="layer-title">Windows C++ Agent</div>
+                <div class="layer-desc">Process & Hook Monitoring</div>
+              </div>
+            </div>
+            <span class="badge-active" id="agentStatusBadge">CONNECTED</span>
           </div>
         </div>
-        <button class="btn-primary" id="scanUrlBtn">
-          <span>Scan Link Threat</span>
-        </button>
 
-        <div class="result-card hidden" id="urlResultCard">
-          <div class="result-header">
-            <span class="result-verdict" id="urlVerdictTitle">Safe Domain</span>
-            <span class="risk-score-badge" id="urlScoreBadge">Score: 0/100</span>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-num" id="phishingStat">8</div>
+            <div class="stat-lbl">Phishing Blocked</div>
           </div>
-          <p class="result-message" id="urlVerdictMsg">No threat detected.</p>
-          <ul class="threat-list hidden" id="urlThreatList"></ul>
+          <div class="stat-card">
+            <div class="stat-num" id="malwareStat">4</div>
+            <div class="stat-lbl">Malware Blocked</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="extStat">3</div>
+            <div class="stat-lbl">Broad Extensions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="dnsStat">2</div>
+            <div class="stat-lbl">DNS Threats</div>
+          </div>
         </div>
       </div>
 
-      <!-- 2. SMS / Message Analyzer Tab -->
-      <div class="tab-panel" id="sms-tab">
+      <!-- 2. Website Security Fingerprint Tab -->
+      <div class="tab-panel" id="fingerprint-tab">
         <div class="input-group">
-          <label class="input-label">Paste Suspicious SMS or Email Text</label>
-          <textarea id="smsInput" rows="4" placeholder="e.g. URGENT: Your bank account is locked! Click link immediately to verify..."></textarea>
+          <label class="input-label">Inspect Target Website Fingerprint</label>
+          <div class="input-wrapper">
+            <input type="text" id="fingerprintUrlInput" placeholder="Auto-detected site URL..." />
+            <button class="btn-paste" id="pasteFingerprintBtn">Paste</button>
+          </div>
         </div>
-        <button class="btn-primary" id="analyzeSmsBtn">
-          <span>Analyze Text Phishing Flags</span>
+        <button class="btn-primary" id="inspectFingerprintBtn">
+          <span>Re-Inspect Website Fingerprint</span>
         </button>
+
+        <div class="result-card hidden" id="fingerprintCard">
+          <div class="result-header">
+            <span class="result-verdict" id="fpVerdict">🟢 SAFE DOMAIN</span>
+            <span class="risk-score-badge" id="fpScore">Score: 0/100</span>
+          </div>
+
+          <div class="fp-grid">
+            <div class="fp-section">
+              <div class="fp-sec-title">Domain Infrastructure</div>
+              <div class="fp-row"><span>Host:</span> <strong id="fpHost">-</strong></div>
+              <div class="fp-row"><span>IP Reputation:</span> <strong id="fpIpRep">CLEAN</strong></div>
+              <div class="fp-row"><span>Domain Age:</span> <strong id="fpAge">Established</strong></div>
+            </div>
+
+            <div class="fp-section">
+              <div class="fp-sec-title">TLS & Encryption</div>
+              <div class="fp-row"><span>HTTPS Protocol:</span> <strong id="fpHttps">Valid</strong></div>
+              <div class="fp-row"><span>Certificate:</span> <strong id="fpCert">Valid</strong></div>
+              <div class="fp-row"><span>Issuer:</span> <strong id="fpIssuer">Let's Encrypt</strong></div>
+            </div>
+
+            <div class="fp-section">
+              <div class="fp-sec-title">Page & Identity</div>
+              <div class="fp-row"><span>Login Form:</span> <strong id="fpLogin">Detected</strong></div>
+              <div class="fp-row"><span>Brand Match:</span> <strong id="fpBrand">Clean</strong></div>
+            </div>
+          </div>
+
+          <ul class="threat-list hidden" id="fpReasonsList"></ul>
+        </div>
+      </div>
+
+      <!-- 3. Browser Extension Security Auditor Tab -->
+      <div class="tab-panel" id="extension-tab">
+        <div class="ext-audit-header">
+          <div>
+            <div class="ext-title">Browser Extension Auditor</div>
+            <div class="ext-subtitle">Audits installed browser extensions for broad permission risks.</div>
+          </div>
+          <button class="btn-sm" id="runExtAuditBtn">Scan Now</button>
+        </div>
+
+        <div class="ext-list" id="extAuditList">
+          <div class="inbox-empty">Click Scan Now to audit installed extensions.</div>
+        </div>
+      </div>
+
+      <!-- 4. Additional Utility Tools Tab -->
+      <div class="tab-panel" id="tools-tab">
+        <div class="input-group">
+          <label class="input-label">SMS / Email Phishing Text Analyzer</label>
+          <textarea id="smsText" rows="3" placeholder="Paste suspicious SMS text..."></textarea>
+          <button class="btn-primary" id="analyzeSmsBtn">Analyze Text</button>
+        </div>
 
         <div class="result-card hidden" id="smsResultCard">
           <div class="result-header">
-            <span class="result-verdict" id="smsVerdictTitle">Safe</span>
-            <span class="risk-score-badge" id="smsScoreBadge">Score: 0/100</span>
+            <span class="result-verdict" id="smsVerdict">Safe</span>
           </div>
-          <div class="flags-container" id="smsFlagsList"></div>
-          <p class="result-recommendation" id="smsRecommendation"></p>
-        </div>
-      </div>
-
-      <!-- 3. Breach Checker Tab -->
-      <div class="tab-panel" id="breach-tab">
-        <div class="input-group">
-          <label class="input-label">Check Email for Credential Leaks</label>
-          <input type="email" id="breachInput" placeholder="Enter email address (e.g. user@gmail.com)" />
-        </div>
-        <button class="btn-primary" id="checkBreachBtn">
-          <span>Check Leaked Breaches</span>
-        </button>
-
-        <div class="result-card hidden" id="breachResultCard">
-          <div class="result-header">
-            <span class="result-verdict" id="breachVerdictTitle">Clean</span>
-          </div>
-          <p class="result-message" id="breachMsg"></p>
-        </div>
-      </div>
-
-      <!-- 4. Disposable Temp Mail Tab -->
-      <div class="tab-panel" id="mail-tab">
-        <div class="temp-mail-box">
-          <label class="input-label">Your Disposable Burner Email</label>
-          <div class="email-display">
-            <span id="tempEmailText">Click Generate to Create Mail</span>
-            <button class="btn-icon" id="copyEmailBtn" title="Copy Address">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-          <button class="btn-primary" id="generateEmailBtn">
-            <span>Generate New Burner Email</span>
-          </button>
+          <div class="flags-container" id="smsFlags"></div>
         </div>
 
-        <div class="inbox-container">
-          <div class="inbox-header">
-            <span>Virtual Inbox</span>
-            <button class="btn-text" id="refreshInboxBtn">Refresh</button>
-          </div>
-          <div class="inbox-list" id="inboxList">
-            <div class="inbox-empty">No incoming messages yet.</div>
+        <div class="input-group" style="margin-top: 12px;">
+          <label class="input-label">Credential Breach & Burner Email</label>
+          <div class="input-wrapper">
+            <input type="email" id="breachEmailInput" placeholder="Check email breaches..." />
+            <button class="btn-paste" id="checkBreachBtn">Check</button>
           </div>
         </div>
       </div>
@@ -155,8 +232,8 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <span>SafeLink AI v1.0.0</span>
-      <a href="http://localhost:8080" target="_blank" class="footer-link">Backend Config</a>
+      <span>SentinelX v2.0.0</span>
+      <a href="http://localhost:8080" target="_blank" class="footer-link">Security Dashboard</a>
     </footer>
   </div>
 

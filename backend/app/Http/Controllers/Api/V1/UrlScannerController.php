@@ -115,7 +115,7 @@ class UrlScannerController extends Controller
         ];
 
         // 6. Cache result for 24 hours in Redis
-        Cache::put($cacheKey, $resultPayload, now()->addHours(config('safelink.thresholds.cache_hours', 24)));
+        Cache::put($cacheKey, $resultPayload, now()->addHours((int) config('safelink.thresholds.cache_hours', 24)));
 
         // 7. Save Scan Log into DB
         try {

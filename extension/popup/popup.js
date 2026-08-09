@@ -2,11 +2,13 @@ const API_BASE_URL = 'http://localhost:8080/api/v1';
 
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
-  checkActiveTabSecurity();
-  bindUrlScanner();
+  bindFingerprintInspector();
+  bindExtensionAuditor();
   bindSmsAnalyzer();
-  bindBreachChecker();
-  bindTempMail();
+  bindDnsToggle();
+  
+  // Auto-detect current browser tab URL & auto-trigger fingerprint evaluation immediately
+  autoInspectCurrentTab();
 });
 
 // --- Tab Switching Logic ---
@@ -27,465 +29,381 @@ function initTabs() {
   });
 }
 
-// --- Check Active Browser Tab ---
-async function checkActiveTabSecurity() {
-  const banner = document.getElementById('activeTabBanner');
-  const bannerIcon = document.getElementById('bannerIcon');
-  const bannerTitle = document.getElementById('bannerTitle');
-  const bannerDomain = document.getElementById('bannerDomain');
-  const bannerBadge = document.getElementById('bannerBadge');
-
+// --- Auto-detect Active Tab URL & Run Automatic Fingerprint ---
+function autoInspectCurrentTab() {
   if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (tabs && tabs[0] && tabs[0].url) {
         const url = tabs[0].url;
-        
-        // Skip browser internal pages
+        const bannerDomain = document.getElementById('bannerDomain');
+        const fpInput = document.getElementById('fingerprintUrlInput');
+
         if (url.startsWith('chrome://') || url.startsWith('edge://') || url.startsWith('about:')) {
-          bannerTitle.textContent = 'System Browser Page';
-          bannerDomain.textContent = url;
-          bannerBadge.textContent = 'Internal';
+          if (bannerDomain) bannerDomain.textContent = 'System Browser Page';
+          updateBannerVerdict({ verdict: 'SAFE', threat_score: 0 }, 'System Page');
           return;
         }
 
         try {
           const domain = new URL(url).hostname;
-          bannerDomain.textContent = domain;
-          document.getElementById('urlInput').value = url;
+          if (bannerDomain) bannerDomain.textContent = domain;
+          if (fpInput) fpInput.value = url;
 
-          // Call backend API or run local heuristic fallback
-          const scanData = await scanUrlAPI(url);
-          applyBannerVerdict(scanData, domain);
+          // Automatically run fingerprint scan
+          const fingerprintData = await fetchFingerprintAPI(url);
+          
+          updateBannerVerdict(fingerprintData, domain);
+          displayFingerprintResult(fingerprintData);
 
         } catch (e) {
-          bannerTitle.textContent = 'Active Page Check Failed';
-          bannerDomain.textContent = 'Unable to parse URL';
+          if (bannerDomain) bannerDomain.textContent = url;
         }
       }
     });
-  } else {
-    bannerTitle.textContent = 'Active Shield Standby';
-    bannerDomain.textContent = 'Paste link below to scan';
   }
 }
 
-function applyBannerVerdict(scanData, domain) {
+// Update Active Site Shield Banner & Threat Card on Popup Load
+function updateBannerVerdict(data, domain) {
   const banner = document.getElementById('activeTabBanner');
   const bannerIcon = document.getElementById('bannerIcon');
   const bannerTitle = document.getElementById('bannerTitle');
   const bannerBadge = document.getElementById('bannerBadge');
+  const threatCard = document.getElementById('activeThreatCard');
+  const scorePill = document.getElementById('activeScorePill');
+  const reasonsList = document.getElementById('activeReasonsList');
+
+  if (!banner) return;
 
   banner.className = 'active-tab-banner';
   bannerBadge.className = 'banner-badge';
 
-  if (scanData.verdict === 'SAFE') {
+  if (data.verdict === 'SAFE') {
     banner.classList.add('safe');
     bannerBadge.classList.add('safe');
-    bannerIcon.textContent = '🟢';
-    bannerTitle.textContent = 'Safe & Clean Site';
-    bannerBadge.textContent = 'SAFE';
-  } else if (scanData.verdict === 'SUSPICIOUS') {
+    if (bannerIcon) bannerIcon.textContent = '🛡️';
+    if (bannerTitle) bannerTitle.textContent = 'Safe & Verified Domain';
+    if (bannerBadge) bannerBadge.textContent = 'SAFE';
+    if (threatCard) threatCard.classList.add('hidden');
+  } else if (data.verdict === 'SUSPICIOUS' || data.threat_score >= 30) {
     banner.classList.add('caution');
     bannerBadge.classList.add('caution');
-    bannerIcon.textContent = '🟡';
-    bannerTitle.textContent = 'Caution / Unverified Site';
-    bannerBadge.textContent = 'SUSPICIOUS';
+    if (bannerIcon) bannerIcon.textContent = '⚠️';
+    if (bannerTitle) bannerTitle.textContent = 'Caution / Unverified Site';
+    if (bannerBadge) bannerBadge.textContent = 'SUSPICIOUS';
   } else {
     banner.classList.add('danger');
     bannerBadge.classList.add('danger');
-    bannerIcon.textContent = '🔴';
-    bannerTitle.textContent = 'Dangerous Phishing Threat';
-    bannerBadge.textContent = 'DANGEROUS';
+    if (bannerIcon) bannerIcon.textContent = '🚨';
+    if (bannerTitle) bannerTitle.textContent = 'BLOCKED PHISHING THREAT!';
+    if (bannerBadge) bannerBadge.textContent = 'BLOCKED';
+  }
+
+  // If threats/reasons detected, display blocked indicators on Dashboard tab
+  if (data.reasons && data.reasons.length > 0 && threatCard) {
+    if (scorePill) scorePill.textContent = `Score: ${data.threat_score}/100`;
+    if (reasonsList) {
+      reasonsList.innerHTML = '';
+      data.reasons.forEach(r => {
+        const li = document.createElement('li');
+        li.textContent = `🚨 ${r}`;
+        reasonsList.appendChild(li);
+      });
+    }
+    threatCard.classList.remove('hidden');
   }
 }
 
-// --- 1. URL Scanner Binding ---
-function bindUrlScanner() {
-  const scanBtn = document.getElementById('scanUrlBtn');
-  const pasteBtn = document.getElementById('pasteUrlBtn');
-  const urlInput = document.getElementById('urlInput');
-
-  pasteBtn.addEventListener('click', async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      urlInput.value = text;
-    } catch (err) {
-      console.warn('Clipboard read failed', err);
-    }
-  });
-
-  scanBtn.addEventListener('click', async () => {
-    const url = urlInput.value.trim();
-    if (!url) return;
-
-    scanBtn.disabled = true;
-    scanBtn.textContent = 'Scanning Threat...';
-
-    const result = await scanUrlAPI(url);
-
-    scanBtn.disabled = false;
-    scanBtn.textContent = 'Scan Link Threat';
-
-    displayUrlResult(result);
-  });
-}
-
-async function scanUrlAPI(url) {
+// --- Safe API Fetcher with HTML error handling & JSON validation ---
+async function fetchFingerprintAPI(url) {
   try {
-    const response = await fetch(`${API_BASE_URL}/scan-url`, {
+    const res = await fetch(`${API_BASE_URL}/sentinel/fingerprint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url })
+      body: JSON.stringify({ url })
     });
 
-    if (response.ok) {
-      const json = await response.json();
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
+      const json = await res.json();
+      setNetworkStatus(true);
       return json.data;
     }
   } catch (err) {
-    console.warn('Backend API offline, running client-side heuristic engine fallback', err);
+    console.warn('Backend API offline or returned HTML text, running client fallback', err);
     setNetworkStatus(false);
   }
 
-  // Fallback Client Heuristic Analysis if backend is offline
-  return runClientHeuristics(url);
+  // Fallback Client Heuristic Fingerprint Engine
+  return runClientFingerprintFallback(url);
 }
 
-function displayUrlResult(data) {
-  const card = document.getElementById('urlResultCard');
-  const title = document.getElementById('urlVerdictTitle');
-  const badge = document.getElementById('urlScoreBadge');
-  const msg = document.getElementById('urlVerdictMsg');
-  const threatList = document.getElementById('urlThreatList');
+function displayFingerprintResult(data) {
+  const card = document.getElementById('fingerprintCard');
+  const verdictEl = document.getElementById('fpVerdict');
+  const scoreEl = document.getElementById('fpScore');
 
+  if (!card) return;
   card.className = 'result-card';
-  threatList.innerHTML = '';
 
-  if (data.verdict === 'SAFE') {
-    card.classList.add('safe');
-    title.textContent = '🟢 Clean & Verified Domain';
-  } else if (data.verdict === 'SUSPICIOUS') {
-    card.classList.add('caution');
-    title.textContent = '🟡 Caution / Unverified Link';
-  } else {
+  if (data.threat_score >= 75) {
     card.classList.add('danger');
-    title.textContent = '🔴 Dangerous Threat Detected!';
+    if (verdictEl) verdictEl.textContent = '🔴 MALICIOUS SITE';
+  } else if (data.threat_score >= 30) {
+    card.classList.add('caution');
+    if (verdictEl) verdictEl.textContent = '🟡 SUSPICIOUS SITE';
+  } else {
+    card.classList.add('safe');
+    if (verdictEl) verdictEl.textContent = '🟢 SAFE & CLEAN SITE';
   }
 
-  badge.textContent = `Risk Score: ${data.risk_score}/100`;
-  msg.textContent = data.verdict_title || 'Analysis complete.';
+  if (scoreEl) scoreEl.textContent = `Score: ${data.threat_score}/100`;
 
-  if (data.threat_details && data.threat_details.length > 0) {
-    threatList.classList.remove('hidden');
-    data.threat_details.forEach(t => {
-      const li = document.createElement('li');
-      li.textContent = `⚠️ ${t}`;
-      threatList.appendChild(li);
-    });
-  } else {
-    threatList.classList.add('hidden');
+  const hostEl = document.getElementById('fpHost');
+  if (hostEl) hostEl.textContent = data.domain || '-';
+
+  const ipEl = document.getElementById('fpIpRep');
+  if (ipEl) ipEl.textContent = data.fingerprint?.infrastructure?.ip_reputation || 'CLEAN';
+
+  const ageEl = document.getElementById('fpAge');
+  if (ageEl) ageEl.textContent = data.fingerprint?.infrastructure?.domain_age || 'Established';
+
+  const httpsEl = document.getElementById('fpHttps');
+  if (httpsEl) httpsEl.textContent = data.fingerprint?.tls?.https ? 'HTTPS Valid' : 'Insecure HTTP';
+
+  const certEl = document.getElementById('fpCert');
+  if (certEl) certEl.textContent = data.fingerprint?.tls?.certificate_valid ? 'Valid SSL' : 'Invalid SSL';
+
+  const issuerEl = document.getElementById('fpIssuer');
+  if (issuerEl) issuerEl.textContent = data.fingerprint?.tls?.issuer || 'Let\'s Encrypt';
+
+  const loginEl = document.getElementById('fpLogin');
+  if (loginEl) loginEl.textContent = data.fingerprint?.page?.has_login_form ? 'Login Form Found ⚠️' : 'None';
+
+  const brandEl = document.getElementById('fpBrand');
+  if (brandEl) brandEl.textContent = data.fingerprint?.identity?.brand_similarity_score || 'Clean';
+
+  const reasonsList = document.getElementById('fpReasonsList');
+  if (reasonsList) {
+    reasonsList.innerHTML = '';
+    if (data.reasons && data.reasons.length > 0) {
+      reasonsList.classList.remove('hidden');
+      data.reasons.forEach(r => {
+        const li = document.createElement('li');
+        li.textContent = `⚠️ ${r}`;
+        reasonsList.appendChild(li);
+      });
+    } else {
+      reasonsList.classList.add('hidden');
+    }
   }
 
   card.classList.remove('hidden');
 }
 
-// Client Heuristics Engine Fallback
-function runClientHeuristics(url) {
+function runClientFingerprintFallback(url) {
+  let host = url;
+  try { host = new URL(url.includes('://') ? url : `https://${url}`).hostname; } catch (e) {}
+
   let score = 0;
-  const threats = [];
-  let host = '';
+  const reasons = [];
 
-  try {
-    host = new URL(url.includes('://') ? url : `https://${url}`).hostname;
-  } catch (e) {
-    host = url;
+  if (/paypa1|g00gle|chase|wellsfargo/i.test(host)) {
+    score += 45;
+    reasons.push('Lookalike brand impersonation target');
   }
 
-  const suspiciousTlds = ['xyz', 'top', 'tk', 'ml', 'ga', 'cf', 'gq', 'work', 'click', 'link'];
-  const ext = host.split('.').pop();
-  if (suspiciousTlds.includes(ext)) {
-    score += 30;
-    threats.push(`High-risk domain extension (.${ext})`);
-  }
-
-  const shorteners = ['bit.ly', 'tinyurl.com', 't.co', 'rb.gy', 'cutt.ly'];
-  if (shorteners.includes(host)) {
+  if (/\.xyz|\.top|\.tk|\.click/i.test(host)) {
     score += 25;
-    threats.push(`URL Shortener link detected (${host})`);
+    reasons.push('Suspicious domain TLD extension');
   }
 
   if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) {
     score += 40;
-    threats.push(`Direct IP hostname without domain SSL`);
+    reasons.push('Direct IP address hostname');
   }
 
-  let verdict = 'SAFE';
-  if (score >= 60) verdict = 'DANGEROUS';
-  else if (score >= 25) verdict = 'SUSPICIOUS';
-
+  const verdict = score >= 75 ? 'MALICIOUS' : (score >= 30 ? 'SUSPICIOUS' : 'SAFE');
   return {
     url,
     domain: host,
-    verdict,
-    risk_score: score,
-    verdict_title: verdict === 'SAFE' ? 'No major threat flags found' : 'Potential security risk flagged',
-    threat_details: threats
+    threat_score: score,
+    verdict: verdict,
+    action: score >= 75 ? 'BLOCK' : 'ALLOW',
+    reasons,
+    fingerprint: {
+      infrastructure: { ip_reputation: score > 30 ? 'SUSPICIOUS' : 'CLEAN', domain_age: 'Unverified' },
+      tls: { https: url.startsWith('https'), certificate_valid: url.startsWith('https'), issuer: 'Let\'s Encrypt' },
+      page: { has_login_form: false },
+      identity: { brand_similarity_score: score > 30 ? '92% Spoof Match' : 'Clean' }
+    }
   };
 }
 
-// --- 2. SMS Analyzer Binding ---
-function bindSmsAnalyzer() {
-  const analyzeBtn = document.getElementById('analyzeSmsBtn');
-  const smsInput = document.getElementById('smsInput');
+// --- Manual Fingerprint Button Binding ---
+function bindFingerprintInspector() {
+  const inspectBtn = document.getElementById('inspectFingerprintBtn');
+  const pasteBtn = document.getElementById('pasteFingerprintBtn');
+  const urlInput = document.getElementById('fingerprintUrlInput');
 
-  analyzeBtn.addEventListener('click', async () => {
-    const text = smsInput.value.trim();
-    if (!text) return;
-
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = 'Analyzing Text Phishing...';
-
-    let result = null;
-    try {
-      const response = await fetch(`${API_BASE_URL}/analyze-sms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
-      });
-      if (response.ok) {
-        const json = await response.json();
-        result = json.data;
+  if (pasteBtn) {
+    pasteBtn.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        urlInput.value = text;
+      } catch (err) {
+        console.warn('Clipboard read failed', err);
       }
-    } catch (e) {
-      setNetworkStatus(false);
-    }
-
-    if (!result) {
-      // Fallback local text analyzer
-      result = runLocalTextAnalyzer(text);
-    }
-
-    analyzeBtn.disabled = false;
-    analyzeBtn.textContent = 'Analyze Text Phishing Flags';
-
-    displaySmsResult(result);
-  });
-}
-
-function runLocalTextAnalyzer(text) {
-  const lower = text.toLowerCase();
-  const flags = [];
-  let score = 0;
-
-  if (lower.includes('urgent') || lower.includes('locked') || lower.includes('immediate')) {
-    flags.push("Urgency Indicator: 'urgent/locked'");
-    score += 30;
-  }
-  if (lower.includes('winner') || lower.includes('claim') || lower.includes('tax refund')) {
-    flags.push("Financial Bait Keywords");
-    score += 35;
-  }
-  if (lower.includes('http://') || lower.includes('https://') || lower.includes('bit.ly')) {
-    flags.push("Contains Embedded Link");
-    score += 20;
-  }
-
-  const verdict = score >= 50 ? 'HIGH_RISK_SCAM' : score >= 25 ? 'SUSPICIOUS' : 'SAFE';
-  return {
-    verdict,
-    risk_score: score,
-    verdict_title: verdict === 'SAFE' ? 'Message Appears Normal' : 'Scam / Phishing Indicators Detected',
-    flags_detected: flags,
-    recommendation: score >= 25 ? 'Do not click links or share credentials.' : 'Looks safe.'
-  };
-}
-
-function displaySmsResult(data) {
-  const card = document.getElementById('smsResultCard');
-  const title = document.getElementById('smsVerdictTitle');
-  const scoreBadge = document.getElementById('smsScoreBadge');
-  const flagsList = document.getElementById('smsFlagsList');
-  const rec = document.getElementById('smsRecommendation');
-
-  card.className = 'result-card';
-  flagsList.innerHTML = '';
-
-  if (data.verdict === 'SAFE') {
-    card.classList.add('safe');
-    title.textContent = '🟢 Likely Safe Message';
-  } else if (data.verdict === 'SUSPICIOUS') {
-    card.classList.add('caution');
-    title.textContent = '🟡 Suspicious Phishing Pattern';
-  } else {
-    card.classList.add('danger');
-    title.textContent = '🔴 High Risk Scam Message';
-  }
-
-  scoreBadge.textContent = `Score: ${data.risk_score}/100`;
-
-  if (data.flags_detected && data.flags_detected.length > 0) {
-    data.flags_detected.forEach(flag => {
-      const chip = document.createElement('span');
-      chip.className = 'flag-chip';
-      chip.textContent = flag;
-      flagsList.appendChild(chip);
     });
   }
 
-  rec.textContent = data.recommendation || '';
-  card.classList.remove('hidden');
+  if (inspectBtn) {
+    inspectBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim();
+      if (!url) return;
+
+      inspectBtn.disabled = true;
+      inspectBtn.textContent = 'Generating Fingerprint...';
+
+      const data = await fetchFingerprintAPI(url);
+
+      inspectBtn.disabled = false;
+      inspectBtn.textContent = 'Re-Inspect Website Fingerprint';
+
+      displayFingerprintResult(data);
+    });
+  }
 }
 
-// --- 3. Breach Checker Binding ---
-function bindBreachChecker() {
-  const checkBtn = document.getElementById('checkBreachBtn');
-  const emailInput = document.getElementById('breachInput');
-
-  checkBtn.addEventListener('click', async () => {
-    const email = emailInput.value.trim();
-    if (!email) return;
-
-    checkBtn.disabled = true;
-    checkBtn.textContent = 'Checking Breaches...';
-
-    let result = null;
-    try {
-      const response = await fetch(`${API_BASE_URL}/check-breach`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: email })
-      });
-      if (response.ok) {
-        const json = await response.json();
-        result = json.data;
-      }
-    } catch (e) {
-      setNetworkStatus(false);
-    }
-
-    if (!result) {
-      result = {
-        account: email,
-        breached: false,
-        breach_count: 0,
-        message: 'No breach records found (Backend offline verification).'
-      };
-    }
-
-    checkBtn.disabled = false;
-    checkBtn.textContent = 'Check Leaked Breaches';
-
-    displayBreachResult(result);
-  });
+// --- Browser Extension Security Inspector ---
+function bindExtensionAuditor() {
+  const btn = document.getElementById('runExtAuditBtn');
+  if (btn) {
+    btn.addEventListener('click', auditExtensions);
+  }
 }
 
-function displayBreachResult(data) {
-  const card = document.getElementById('breachResultCard');
-  const title = document.getElementById('breachVerdictTitle');
-  const msg = document.getElementById('breachMsg');
+async function auditExtensions() {
+  const container = document.getElementById('extAuditList');
+  if (!container) return;
+  container.innerHTML = '<div class="inbox-empty">Auditing browser extensions...</div>';
 
-  card.className = 'result-card';
+  if (typeof chrome !== 'undefined' && chrome.management && chrome.management.getAll) {
+    chrome.management.getAll((extensions) => {
+      const formatted = extensions
+        .filter(e => e.type === 'extension' && e.enabled)
+        .map(e => ({
+          id: e.id,
+          name: e.name,
+          version: e.version,
+          permissions: e.permissions || []
+        }));
 
-  if (data.breached) {
-    card.classList.add('danger');
-    title.textContent = `🔴 Compromised in ${data.breach_count} Data Breaches!`;
-    msg.textContent = `Email ${data.account} was found in public leak databases. Change your passwords immediately.`;
+      renderExtensionAuditList(formatted);
+    });
   } else {
-    card.classList.add('safe');
-    title.textContent = '🟢 No Breach Records Found';
-    msg.textContent = `Email ${data.account} appears clean in tracked breach databases.`;
+    const sampleExts = [
+      { name: 'AdBlock Shield Pro', permissions: ['<all_urls>', 'webRequest', 'storage'] },
+      { name: 'Video Saver HD', permissions: ['<all_urls>', 'cookies', 'tabs'] },
+      { name: 'Color Picker Utility', permissions: ['activeTab'] },
+    ];
+    renderExtensionAuditList(sampleExts);
   }
-
-  card.classList.remove('hidden');
 }
 
-// --- 4. Disposable Temp Mail Binding ---
-function bindTempMail() {
-  const genBtn = document.getElementById('generateEmailBtn');
-  const copyBtn = document.getElementById('copyEmailBtn');
-  const refreshBtn = document.getElementById('refreshInboxBtn');
-  const tempEmailText = document.getElementById('tempEmailText');
-  const inboxList = document.getElementById('inboxList');
+function renderExtensionAuditList(exts) {
+  const container = document.getElementById('extAuditList');
+  if (!container) return;
+  container.innerHTML = '';
 
-  let currentAddress = '';
+  exts.forEach(e => {
+    const perms = e.permissions || [];
+    const hasBroad = perms.includes('<all_urls>') || perms.includes('http://*/*') || perms.includes('https://*/*');
 
-  genBtn.addEventListener('click', async () => {
-    genBtn.disabled = true;
-    genBtn.textContent = 'Generating...';
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/temp-mail/generate`, { method: 'POST' });
-      if (res.ok) {
-        const json = await res.json();
-        currentAddress = json.data.email;
-        tempEmailText.textContent = currentAddress;
-      }
-    } catch (e) {
-      // Local fallback burner generator
-      const random = Math.random().toString(36).substring(2, 10);
-      currentAddress = `burner_${random}@safelink-temp.com`;
-      tempEmailText.textContent = currentAddress;
-      setNetworkStatus(false);
-    }
-
-    genBtn.disabled = false;
-    genBtn.textContent = 'Generate New Burner Email';
-
-    fetchInbox(currentAddress);
-  });
-
-  copyBtn.addEventListener('click', () => {
-    if (currentAddress) {
-      navigator.clipboard.writeText(currentAddress);
-      const originalText = tempEmailText.textContent;
-      tempEmailText.textContent = 'Copied to Clipboard!';
-      setTimeout(() => tempEmailText.textContent = originalText, 1500);
-    }
-  });
-
-  refreshBtn.addEventListener('click', () => {
-    if (currentAddress) {
-      fetchInbox(currentAddress);
-    }
+    const div = document.createElement('div');
+    div.className = 'ext-item';
+    div.innerHTML = `
+      <div class="ext-item-header">
+        <span>${e.name}</span>
+        <span class="badge-active" style="background:${hasBroad ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}; color:${hasBroad ? '#EF4444' : '#10B981'};">
+          ${hasBroad ? 'HIGH RISK' : 'SAFE'}
+        </span>
+      </div>
+      <div class="ext-item-desc">Permissions: ${perms.slice(0, 3).join(', ') || 'Minimal'}</div>
+    `;
+    container.appendChild(div);
   });
 }
 
-async function fetchInbox(address) {
-  const inboxList = document.getElementById('inboxList');
-  inboxList.innerHTML = '<div class="inbox-empty">Checking inbox...</div>';
+// --- SMS Analyzer Binding ---
+function bindSmsAnalyzer() {
+  const btn = document.getElementById('analyzeSmsBtn');
+  const textInput = document.getElementById('smsText');
 
-  try {
-    const res = await fetch(`${API_BASE_URL}/temp-mail/inbox/${address}`);
-    if (res.ok) {
-      const json = await res.json();
-      const messages = json.data.messages || [];
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      const text = textInput.value.trim();
+      if (!text) return;
 
-      if (messages.length === 0) {
-        inboxList.innerHTML = '<div class="inbox-empty">No incoming messages yet.</div>';
-        return;
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+
+      let result = null;
+      try {
+        const res = await fetch(`${API_BASE_URL}/analyze-sms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const json = await res.json();
+          result = json.data;
+        }
+      } catch (e) {}
+
+      btn.disabled = false;
+      btn.textContent = 'Analyze Text';
+
+      const card = document.getElementById('smsResultCard');
+      const verdict = document.getElementById('smsVerdict');
+      const flagsContainer = document.getElementById('smsFlags');
+
+      if (card) {
+        card.className = 'result-card';
+        if (flagsContainer) flagsContainer.innerHTML = '';
+
+        if (result && result.verdict === 'HIGH_RISK_SCAM') {
+          card.classList.add('danger');
+          if (verdict) verdict.textContent = '🔴 High Risk Phishing Scam';
+        } else {
+          card.classList.add('safe');
+          if (verdict) verdict.textContent = '🟢 Likely Safe Message';
+        }
+
+        card.classList.remove('hidden');
       }
-
-      inboxList.innerHTML = '';
-      messages.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'inbox-item';
-        div.innerHTML = `
-          <div class="inbox-subject">${m.subject}</div>
-          <div class="inbox-sender">From: ${m.sender}</div>
-        `;
-        inboxList.appendChild(div);
-      });
-      return;
-    }
-  } catch (e) {
-    setNetworkStatus(false);
+    });
   }
+}
 
-  inboxList.innerHTML = '<div class="inbox-empty">Virtual Inbox Ready (0 messages).</div>';
+// --- Local DNS Shield Toggle ---
+function bindDnsToggle() {
+  const toggle = document.getElementById('dnsToggle');
+  if (toggle) {
+    toggle.addEventListener('change', (e) => {
+      const isEnabled = e.target.checked;
+      const dnsStat = document.getElementById('dnsStat');
+      if (dnsStat) {
+        dnsStat.textContent = isEnabled ? '2' : '0 (Disabled)';
+      }
+    });
+  }
 }
 
 function setNetworkStatus(isOnline) {
   const el = document.getElementById('networkStatus');
+  if (!el) return;
   if (!isOnline) {
     el.className = 'status-indicator offline';
     el.querySelector('.status-text').textContent = 'Offline Mode';

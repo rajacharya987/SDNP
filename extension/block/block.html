@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚨 ACCESS BLOCKED - SentinelX Security</title>
+  <link rel="stylesheet" href="block.css">
+</head>
+<body>
+  <div class="block-card">
+    <div class="brand-header">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L3 7V12C3 17.523 6.944 21.737 12 22C17.056 21.737 21 17.523 21 12V7L12 2Z" fill="#EF4444" stroke="#FCA5A5" stroke-width="1.5"/>
+        <path d="M12 8V13M12 16H12.01" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-name">SENTINELX SECURITY</span>
+    </div>
+
+    <div class="alert-icon-wrapper">
+      <div class="alert-pulse"></div>
+      <div class="alert-icon">🛑</div>
+    </div>
+
+    <h1 class="block-title">WEBSITE ACCESS BLOCKED</h1>
+    <p class="block-subtitle">SentinelX multi-layer threat protection intercepted a high-risk security threat before it could harm your device.</p>
+
+    <div class="target-domain-box" id="targetUrlBox">
+      example-bank-login.com
+    </div>
+
+    <div class="score-container">
+      <span class="score-label">Threat Score</span>
+      <span class="score-value" id="scoreValue">94/100 🔴</span>
+    </div>
+
+    <div class="reasons-container">
+      <div class="reasons-header">🚨 PHISHING & MALICIOUS INDICATORS DETECTED</div>
+      <ul class="reasons-list" id="reasonsList">
+        <li>✓ Suspicious domain extension & typosquatting</li>
+        <li>✓ Sensitive credential login form detected</li>
+        <li>✓ Newly registered domain infrastructure (< 30 days)</li>
+        <li>✓ Hidden redirect chain & unencrypted connection</li>
+      </ul>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn-goback" id="goBackBtn">
+        <span>🛡️ Go Back to Safety</span>
+      </button>
+      <button class="btn-proceed-unsafe" id="proceedUnsafeBtn">
+        <span>Proceed Anyway (Unsafe)</span>
+      </button>
+    </div>
+
+    <div class="footer-note">
+      Protected by <strong>SentinelX Personal Security Platform</strong> Layer 1 Web Shield
+    </div>
+  </div>
+
+  <script src="block.js"></script>
+</body>
+</html>
