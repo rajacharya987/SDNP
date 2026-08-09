@@ -1,37 +1,66 @@
-FROM php:8.3-fpm
+FROM php:8.3-fpm-alpine
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
+# Runtime libs only (kept after build)
+RUN apk add --no-cache \
     curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    zip \
-    unzip \
-    supervisor
+    libpng \
+    libzip \
+    oniguruma \
+    icu-libs \
+    linux-headers
 
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# Build extensions in one layer, then drop compilers
+RUN apk add --no-cache --virtual .build-deps \
+        $PHPIZE_DEPS \
+        libpng-dev \
+        libzip-dev \
+        oniguruma-dev \
+        icu-dev \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+        opcache \
+        intl \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .build-deps \
+    && rm -rf /tmp/pear /var/cache/apk/*
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
-
-# Get latest Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Set working directory
 WORKDIR /var/www
 
-# Copy existing application directory contents
-COPY . /var/www
+# Cache Composer deps when lockfile unchanged
+COPY composer.json composer.lock ./
+RUN composer install \
+        --no-dev \
+        --no-scripts \
+        --no-autoloader \
+        --prefer-dist \
+        --no-interaction \
+        --quiet \
+    && rm -rf /root/.composer/cache
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
+COPY . .
+
+RUN composer dump-autoload --optimize --classmap-authoritative --no-dev \
+    && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R ug+rwx storage bootstrap/cache
+
+COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
+COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/php/www.conf /usr/local/etc/php-fpm.d/zz-www.conf
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
+    && chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 9000
-CMD ["php-fpm"]
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["php-fpm", "-F"]

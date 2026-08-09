@@ -27,7 +27,7 @@ class HaveIBeenPwnedService
 
         try {
             // Query free XposedOrNot data breach API
-            $response = Http::timeout(8)->get($this->endpoint . urlencode($email));
+            $response = Http::timeout(4)->connectTimeout(2)->acceptJson()->get($this->endpoint . urlencode($email));
 
             if ($response->successful()) {
                 $data = $response->json();

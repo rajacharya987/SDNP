@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="safelink_widget_title">SafeLink</string>
+    <string name="safelink_widget_idle">Tap to check a copied link</string>
+    <string name="safelink_widget_action">Paste &amp; Check</string>
+    <string name="safelink_widget_description">Quickly check links copied from chats, SMS, or email</string>
+</resources>

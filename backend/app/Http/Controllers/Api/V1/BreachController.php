@@ -24,18 +24,21 @@ class BreachController extends Controller
     {
         $identifier = trim($request->validated()['identifier']);
         $result = $this->hibpService->checkAccount($identifier);
+        $userId = $request->user()?->id;
 
-        try {
-            BreachLog::create([
-                'user_id' => $request->user()?->id,
-                'identifier' => $identifier,
-                'is_breached' => $result['breached'],
-                'breach_count' => $result['breach_count'],
-                'breach_details' => $result['breaches'],
-            ]);
-        } catch (\Exception $e) {
-            Log::warning('Failed to log breach check', ['error' => $e->getMessage()]);
-        }
+        dispatch(function () use ($identifier, $result, $userId) {
+            try {
+                BreachLog::create([
+                    'user_id' => $userId,
+                    'identifier' => $identifier,
+                    'is_breached' => $result['breached'],
+                    'breach_count' => $result['breach_count'],
+                    'breach_details' => $result['breaches'],
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to log breach check', ['error' => $e->getMessage()]);
+            }
+        })->afterResponse();
 
         return $this->successResponse($result, $result['message']);
     }
